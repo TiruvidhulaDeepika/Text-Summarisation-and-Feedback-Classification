@@ -1,0 +1,116 @@
+import requests
+from bs4 import BeautifulSoup
+import re
+from collections import Counter
+import pandas as pd
+import tkinter as tk
+from PIL import Image, ImageTk
+import matplotlib.pyplot as plt
+from io import BytesIO
+def get_text_from_url(url):
+try:
+	response = requests.get(url)
+	soup = BeautifulSoup(response.content, "html.parser")
+	text = ' '.join([p.get_text() for p in soup.find_all('p')])
+	return text
+except requests.exceptions.RequestException as e:
+	return f"Error: {e}"
+"""def clean_text(text):
+	text = re.sub(r'[^a-zA-Z\s]', '', text)
+	return text""" 
+def clean_text(text):
+	text = re.sub(r'[^a-zA-Z\s]', '', text) # Remove non-alphabetic characters
+	text = re.sub(r'\b\d+\b', '', text) # Remove standalone numbers
+	return text
+def word_frequencies(text):
+	words = text.split()
+	word_freq = Counter(words)
+	return word_freq
+	def summarize_url(url, num_sentences=10):
+	text = get_text_from_url(url)
+	cleaned_text = clean_text(text)
+	word_freq = word_frequencies(cleaned_text)
+	most_common_words = word_freq.most_common(20)
+	most_common_words = [word[0] for word in most_common_words]
+	sentences = re.split(r'(?<=[.!?])\s+', text)
+	selected_sentences = []
+for sentence in sentences:
+	for word in most_common_words:
+		if word in sentence:
+			selected_sentences.append(sentence)
+		break
+		if len(selected_sentences) >= num_sentences:
+			break
+	cleaned_summary = [re.sub(r'\[\d+\]', '', s) for s in selected_sentences]
+	summary = ' '.join(cleaned_summary)
+	return summary
+def simple_sentiment_analysis(text):
+	positive_words = ["good", "great", "excellent"] # Add more positive words
+	negative_words = ["bad", "terrible", "poor"] # Add more negative words
+	text_lower = text.lower()
+	words = text_lower.split()
+	num_positive = sum(word in positive_words for word in words)
+	num_negative = sum(word in negative_words for word in words)
+	if num_positive > num_negative:
+	return "Positive" elif num_positive < num_negative:
+	return "Negative" else:
+	return "Neutral" def display_results():
+url = entry_url.get()
+text_summary = get_text_from_url(url)
+text_summary_widget.insert(tk.END, f"\nSummary of the text from the provided
+URL:\n{text_summary}\n")
+def analyze_feedback():
+	product_name = variable.get()
+	selected_product = data[data['Product'] == product_name]
+	if not selected_product.empty:
+		selected_product["Score"] = selected_product["ReviewBody"].apply(simple_sentiment_analysis)
+		Mno = selected_product[selected_product.Score == "Positive"]["Score"].count()
+		Fno = selected_product[selected_product.Score == "Negative"]["Score"].count()
+		Nno = selected_product[selected_product.Score == "Neutral"]["Score"].count()
+		total = Mno + Fno + Nno
+		positive_percent = (Mno / total) * 100
+		negative_percent = (Fno / total) * 100
+		neutral_percent = (Nno / total) * 100
+		feedback_widget.delete(1.0, tk.END) # Clear previous text
+		if not total == 0:
+			feedback_widget.insert(tk.END, f"Positive Comments: {positive_percent:.1f}%\n"
+			f"Negative Comments: {negative_percent:.1f}%\n"
+			f"Neutral Comments: {neutral_percent:.1f}%\n")
+			fig, ax = plt.subplots()
+			ax.pie([positive_percent, negative_percent, neutral_percent], labels=["Positive", "Negative", "Neutral"], autopct='%1.1f%%')
+			ax.axis('equal')
+			buf = BytesIO()
+			fig.savefig(buf, format='png')
+			buf.seek(0)
+			image = Image.open(buf)
+			pie_image = ImageTk.PhotoImage(image)
+			feedback_label = tk.Label(root, image=pie_image)
+			feedback_label.image = pie_image # Keep a reference
+			feedback_label.pack()
+		else:
+			feedback_widget.insert(tk.END, "No reviews found for the selected product.\n")
+	else:
+		feedback_widget.insert(tk.END, "Product not found in the dataset. Please enter a valid product name.\n")
+root = tk.Tk()
+root.title("Text summarization & Feedback Classification")
+label_url = tk.Label(root, text="Enter the URL you'd like to summarize:")
+label_url.pack()
+entry_url = tk.Entry(root, width=50)
+entry_url.pack()
+summary_button = tk.Button(root, text="Get Summary", command=display_results)
+summary_button.pack()
+text_summary_widget = tk.Text(root, height=10, width=50)
+text_summary_widget.pack()
+data = pd.read_csv(r"C:\Users\varun\Documents\AllProductReviews.csv") # Replace with the path to your CSV file
+unique_products = data['Product'].unique()
+variable = tk.StringVar(root)
+variable.set("Select a Product") # default value
+product_label = tk.Label(root, text="Select a product for feedback classification:")
+product_label.pack()
+product_dropdown = tk.OptionMenu(root, variable, *unique_products)
+product_dropdown.pack()
+analyze_button = tk.Button(root, text="Analyze Feedback", command=analyze_feedback)
+analyze_button.pack()
+feedback_widget = tk.Text(root, height=5, width=50)
+feedback_widget.pack()
+root.mainloop()
